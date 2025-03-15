@@ -1,8 +1,11 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_blendmode.h>
+#include <SDL2/SDL_events.h>
+#include <SDL2/SDL_mouse.h>
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_scancode.h>
 #include <SDL2/SDL_stdinc.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_mixer.h>
@@ -56,7 +59,7 @@ typedef struct Player {
 
 SDL_Color *colors;
 
-void castRays(SDL_Renderer *renderer, Player *player, int mapScaler);
+void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int offset);
 void initColors();
 // typedef struct ScaledProjection {
 //     int width;
@@ -88,21 +91,39 @@ int main(void) {
     // Vector2 screen = {0, 0.66}; //perpendicolare alla direzione e di stessa lunghezza, così da avere fov=90°
     Player player = {initialPos, initialDir, screen};
     SDL_Window *window;
+    SDL_Window *window2D;
     SDL_Renderer *renderer;
+    SDL_Renderer *renderer2D;
     // uint8_t **map = createRectMap(mapSize, mapSize);
     window =  SDL_CreateWindow("Dumb Raycaster", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WWIDTH, WHEIGHT, SDL_WINDOW_OPENGL);
+    // window2D =  SDL_CreateWindow("Dumb Raycaster in 2D", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WWIDTH, WHEIGHT, SDL_WINDOW_OPENGL);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    // renderer2D = SDL_CreateRenderer(window2D, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC); 
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRelativeMouseMode(SDL_TRUE);
     // initColors();
     // SDL_RenderSetScale(renderer, mapScaler, mapScaler);
     int isGameRunning = 1;
+    Uint32 currentFrame = 0;
+    Uint32 prevFrame = currentFrame;
+    Vector2i positionInMap;
+    // int jmpOffset = 10;
     while (isGameRunning) {
         Uint32 lastTick = SDL_GetTicks();
         SDL_RenderClear(renderer);
+        SDL_SetRenderDrawColor(renderer2D, 0, 0, 0, 255);
+        SDL_RenderClear(renderer2D);
         while (SDL_PollEvent(&keyboardEvent)) { 
             if (keyboardEvent.type == SDL_QUIT) {
                 isGameRunning = 0;
             }
+            if (keyboardEvent.type == SDL_MOUSEMOTION) {
+                SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+                SDL_RenderDrawLine(renderer, 0, 0, keyboardEvent.motion.x, keyboardEvent.motion.y);
+                
+                // printf("x:%d - y: %d", keyboardEvent.motion.x, keyboardEvent.motion.y);
+            }
+
         }
         if (pressedKeys[SDL_SCANCODE_LEFT]) {
             rotateVector(&player.direction, -0.014); //circa 0.8°
@@ -115,36 +136,70 @@ int main(void) {
         if (pressedKeys[SDL_SCANCODE_UP]) {
             player.position.x+=player.direction.x/10;
             player.position.y+=player.direction.y/10;
+            positionInMap.x = (int)floor(player.position.x+player.direction.x);
+            positionInMap.y = (int)floor(player.position.y+player.direction.y);
+            if (map[positionInMap.y][positionInMap.x]!=0) {
+                player.position.x-=player.direction.x/10;
+                player.position.y-=player.direction.y/10;
+            }
+            // if (map[positionInMap.x][positionInMap.y]!=0) {
+            //     player.position.x = positionInMap.x;
+            // }
+
         } 
         if (pressedKeys[SDL_SCANCODE_DOWN]) {
             player.position.x-=player.direction.x/10;
             player.position.y-=player.direction.y/10;
-        }   
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            positionInMap.x = (int)floor(player.position.x);
+            positionInMap.y = (int)floor(player.position.y);
+            if (map[positionInMap.y][positionInMap.x]!=0) {
+                player.position.x+=player.direction.x/10;
+                player.position.y+=player.direction.y/10;
+            }
+            // if (map[positionInMap.x][positionInMap.y]!=0) {
+            //     player.position.x = positionInMap.x;
+            // }
+        } 
+        if (pressedKeys[SDL_SCANCODE_SPACE]) {
+            if (currentFrame==0) {
+                prevFrame = currentFrame;
+                currentFrame+=2;
+            }
+        }
+        if (currentFrame>0 && prevFrame < currentFrame) {
+            prevFrame = currentFrame; 
+            currentFrame+=2;
+        }
+        if (currentFrame == 50 || (currentFrame>0 && prevFrame > currentFrame)) {
+            prevFrame = currentFrame;
+            currentFrame-=2;
+        }        
+        // SDL_SetRenderDrawColor(renderer2D, 255, 255, 255, 255);
         // for (int i = 0; i < MHEIGHT; i++) {
         //     for (int j = 0; j < MWIDTH; j++) {
         //         if (map[i][j]!=0) {
         //             SDL_Rect rect = {j*30, i*30, 30, 30};
-        //             SDL_RenderDrawRect(renderer, &rect);
+        //             SDL_RenderDrawRect(renderer2D, &rect);
         //         }
         //     }
         // }
         //INIZIO render 2D di prova
-        // SDL_RenderDrawPointF(renderer, player.position.x*30, player.position.y*30);
-        // SDL_RenderDrawLineF(renderer, player.position.x*30, player.position.y*30, player.position.x*30 + player.direction.x*30 , player.position.y*30 + player.direction.y*30 );
-        // SDL_RenderDrawLineF(renderer, player.position.x*30+player.direction.x*30, player.position.y*30 + player.direction.y*30 , player.position.x*30+player.direction.x*30+player.screen.x*30, player.position.y*30+player.direction.y*30+player.screen.y*30);
-        // SDL_RenderDrawLineF(renderer, player.position.x*30+player.direction.x*30, player.position.y*30 + player.direction.y*30 , player.position.x*30+player.direction.x*30-player.screen.x*30, player.position.y*30+player.direction.y*30-player.screen.y*30);
+        // SDL_RenderDrawPointF(renderer2D, player.position.x*30, player.position.y*30);
+        // SDL_RenderDrawLineF(renderer2D, player.position.x*30, player.position.y*30, player.position.x*30 + player.direction.x*30 , player.position.y*30 + player.direction.y*30 );
+        // SDL_RenderDrawLineF(renderer2D, player.position.x*30+player.direction.x*30, player.position.y*30 + player.direction.y*30 , player.position.x*30+player.direction.x*30+player.screen.x*30, player.position.y*30+player.direction.y*30+player.screen.y*30);
+        // SDL_RenderDrawLineF(renderer2D, player.position.x*30+player.direction.x*30, player.position.y*30 + player.direction.y*30 , player.position.x*30+player.direction.x*30-player.screen.x*30, player.position.y*30+player.direction.y*30-player.screen.y*30);
         //FINE render 2D di prova
-        castRays(renderer, &player, mapScaler);
+        castRays(renderer, &player, mapScaler, currentFrame);
         SDL_RenderPresent(renderer);
+        SDL_RenderPresent(renderer2D);
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         Uint32 currentDelay = SDL_TICKS_PASSED(lastTick, SDL_GetTicks());
         SDL_Delay(delayMs - currentDelay);
     }
 }
 
-void castRays(SDL_Renderer *renderer, Player *player, int mapScaler) {
-    const int wcenter = WWIDTH/2;
+void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int offset) {
+    const int wcenter = WWIDTH/2 + offset;
     for (int i = 0; i < WWIDTH; i++) {
         double cameraX = (double)((double)2 * i / (double)WWIDTH) - 1;
         //vettore che rappresenta la direzione del raggio
@@ -206,7 +261,7 @@ void castRays(SDL_Renderer *renderer, Player *player, int mapScaler) {
         // SDL_SetRenderDrawColor(renderer, colors[map[currentPosInMap.y][currentPosInMap.x]-1].r/side, colors[map[currentPosInMap.y][currentPosInMap.x]-1].g/side, colors[map[currentPosInMap.y][currentPosInMap.x]-1].b/side, 255);
         SDL_SetRenderDrawColor(renderer, 255/side, 255/side, 255/side, 255);
         SDL_RenderDrawLine(renderer, i, wcenter-halfWallHeight, i, wcenter+halfWallHeight);
-        // SDL_RenderDrawLine(renderer, i, wcenter+halfWallHeight, i, wcenter+halfWallHeight*2.5); //riflesso
+        SDL_RenderDrawLine(renderer, i, wcenter+halfWallHeight, i, wcenter+halfWallHeight*2.5); //riflesso
         SDL_SetRenderDrawColor(renderer, 60, 60, 60, 130);
         SDL_RenderDrawLine(renderer, i, wcenter+halfWallHeight, i, WHEIGHT-1);
         //FINE RENDER 3D
