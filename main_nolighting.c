@@ -254,12 +254,8 @@ void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int *buffer
             currentPosFloor.x += floorStep.x;
             currentPosFloor.y += floorStep.y;
             // Uint32 color;
-            Uint32 color = surfPixels[1][WWIDTH*pixelCoordsInTexture.y + pixelCoordsInTexture.x];
-            color = (((color>>24) & 0xFF))<<24 | (((color>>16) & 0xFF)-(Uint8)distance*5)<<16  | (((color>>8) & 0xFF)-(int)distance*5)<<8  | ((color & 0xFF))-(int)distance*5;
-            buffer[i*WWIDTH+j] =  color;
-            color = surfPixels[2][WWIDTH*pixelCoordsInTexture.y + pixelCoordsInTexture.x];
-            color = (((color>>24) & 0xFF))<<24 | (((color>>16) & 0xFF))-(int)distance*5<<16 | (((color>>8) & 0xFF))-(int)distance*5<<8 | ((color & 0xFF))-(int)distance*5;
-            buffer[(WHEIGHT-i-1)*WWIDTH+j] = color;
+            buffer[i*WWIDTH+j] =  surfPixels[1][WWIDTH*pixelCoordsInTexture.y + pixelCoordsInTexture.x];
+            buffer[(WHEIGHT-i-1)*WWIDTH+j] = surfPixels[2][WWIDTH*pixelCoordsInTexture.y + pixelCoordsInTexture.x];
         }
     }
     //walls casting
@@ -349,19 +345,9 @@ void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int *buffer
             texY+=step;
             int index = (int)texYIndex*surfaces[0]->w+positionOnTexture;
             Uint32 color = surfPixels[0][index];
-            // Uint32 color = 0;
-            // Uint8 colorByte;
-            // if (side==1) {
-            // for (int k = 0; k<=24; k+=8) {
-            //     colorByte = (surfPixels[0][index]>>k) & 0xFF;
-            //     colorByte = colorByte-((Uint8)((int)wallDist*10)&colorByte);
-            //     // if ((int)wallDist*10>=colorByte) {
-            //     //     colorByte = 0;
-            //     // }
-            //     color |= ((colorByte) << k);
-            // }
-            color = (((color>>24) & 0xFF))<<24 | (((color>>16) & 0xFF))-((int)wallDist*5)<<16 | (((color>>8) & 0xFF))-(Uint8)wallDist*5<<8 | ((color & 0xFF))-(Uint8)wallDist*5;
-            // }
+            if (side==1) {
+                color = (((color>>24) & 0xFF)>>1)<<24 | (((color>>16) & 0xFF)>>1)<<16 | (((color>>8) & 0xFF)>>1)<<8 | (color & 0xFF)>>1;
+            }
             buffer[j*WWIDTH+i] = color;
             // drawPixel(i, j, surfPixels[startingIndex+3], surfPixels[startingIndex+2], surfPixels[startingIndex+1], surfPixels[startingIndex], buffer);
         }

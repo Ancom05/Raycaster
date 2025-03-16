@@ -1,6 +1,8 @@
 #ifndef __LINEAR_ALG_H
 #define __LINEAR_ALG_H
+
 #include <math.h>
+
 typedef struct Vector2 {
     double x;
     double y;
@@ -26,4 +28,13 @@ void rotateVector(Vector2 *vector, double angle) {
     vector->x = tmp.x;
     vector->y = tmp.y;
 }
+
+double dotProduct(Vector2 vector1, Vector2 vector2) {
+    return vector1.x*vector2.x+vector1.y*vector2.y;
+}
+
+double norm(Vector2 vector) {
+    return sqrt(dotProduct(vector, vector));
+}
+
 #endif

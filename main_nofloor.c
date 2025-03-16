@@ -136,7 +136,7 @@ int main(void) {
     int isGameRunning = 1;
     SDL_Surface **surfaces = malloc(3*sizeof(SDL_Surface*));
     surfaces[0] = SDL_LoadBMP("assets/backrooms.bmp");
-    surfaces[1] = SDL_LoadBMP("assets/backrooms_floor1.bmp");
+    surfaces[1] = SDL_LoadBMP("assets/backrooms_floor.bmp");
     surfaces[2] = SDL_LoadBMP("assets/backrooms_ceiling.bmp");
     for (int i = 0; i < 3; i++) {
         SDL_ConvertSurfaceFormat(surfaces[i], SDL_PIXELFORMAT_ARGB8888, 0);
@@ -225,43 +225,39 @@ void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int *buffer
         surfPixels[i] = surfaces[i]->pixels;
     }
     //floor casting
-    for (int i = wcenter+1; i < WHEIGHT; i++) {
-        Vector2 mostLeftRay;
-        mostLeftRay.x = player->direction.x - player->screen.x;
-        mostLeftRay.y = player->direction.y - player->screen.y;
-        Vector2 mostRightRay;
-        mostRightRay.x = player->direction.x + player->screen.x;
-        mostRightRay.y = player->direction.y + player->screen.y;
-        //altezza rispetto all'orizzonte a centro schermo
-        int currentHeight = i - wcenter;
-        //wcenter e' l'orizzonte, quindi e' il punto di massimo profondita, allora per calcolare la profondita del punto corrente lo dividi con l'altezza di quest'ultimo rispetto all'orizzonte
-        double distance =  (double)wcenter/currentHeight;
-        //distanza di cui spostarsi ogni volta sulla texture
-        Vector2 floorStep;
-        floorStep.x = distance * (mostRightRay.x - mostLeftRay.x)/(double)WWIDTH;
-        floorStep.y = distance * (mostRightRay.y - mostLeftRay.y)/(double)WWIDTH;
-        //posizione reale sulla texture
-        Vector2 currentPosFloor;
-        currentPosFloor.x = player->position.x + distance * mostLeftRay.x;
-        currentPosFloor.y = player->position.y + distance * mostLeftRay.y;
-        Vector2i floorIndex;
-        Vector2i pixelCoordsInTexture;
-        for (int j = 0; j < WWIDTH; j++) {
-            floorIndex.x = (int)currentPosFloor.x;
-            floorIndex.y = (int)currentPosFloor.y;
-            pixelCoordsInTexture.x = (int)((currentPosFloor.x - floorIndex.x) * TEXWIDTH) & (TEXWIDTH-1);
-            pixelCoordsInTexture.y = (int)((currentPosFloor.y - floorIndex.y) * TEXHEIGHT) & (TEXHEIGHT-1);
-            currentPosFloor.x += floorStep.x;
-            currentPosFloor.y += floorStep.y;
-            // Uint32 color;
-            Uint32 color = surfPixels[1][WWIDTH*pixelCoordsInTexture.y + pixelCoordsInTexture.x];
-            color = (((color>>24) & 0xFF))<<24 | (((color>>16) & 0xFF)-(Uint8)distance*5)<<16  | (((color>>8) & 0xFF)-(int)distance*5)<<8  | ((color & 0xFF))-(int)distance*5;
-            buffer[i*WWIDTH+j] =  color;
-            color = surfPixels[2][WWIDTH*pixelCoordsInTexture.y + pixelCoordsInTexture.x];
-            color = (((color>>24) & 0xFF))<<24 | (((color>>16) & 0xFF))-(int)distance*5<<16 | (((color>>8) & 0xFF))-(int)distance*5<<8 | ((color & 0xFF))-(int)distance*5;
-            buffer[(WHEIGHT-i-1)*WWIDTH+j] = color;
-        }
-    }
+    // for (int i = wcenter+1; i < WHEIGHT; i++) {
+    //     Vector2 mostLeftRay;
+    //     mostLeftRay.x = player->direction.x - player->screen.x;
+    //     mostLeftRay.y = player->direction.y - player->screen.y;
+    //     Vector2 mostRightRay;
+    //     mostRightRay.x = player->direction.x + player->screen.x;
+    //     mostRightRay.y = player->direction.y + player->screen.y;
+    //     //altezza rispetto all'orizzonte a centro schermo
+    //     int currentHeight = i - wcenter;
+    //     //wcenter e' l'orizzonte, quindi e' il punto di massimo profondita, allora per calcolare la profondita del punto corrente lo dividi con l'altezza di quest'ultimo rispetto all'orizzonte
+    //     double distance =  (double)wcenter/currentHeight;
+    //     //distanza di cui spostarsi ogni volta sulla texture
+    //     Vector2 floorStep;
+    //     floorStep.x = distance * (mostRightRay.x - mostLeftRay.x)/(double)WWIDTH;
+    //     floorStep.y = distance * (mostRightRay.y - mostLeftRay.y)/(double)WWIDTH;
+    //     //posizione reale sulla texture
+    //     Vector2 currentPosFloor;
+    //     currentPosFloor.x = player->position.x + distance * mostLeftRay.x;
+    //     currentPosFloor.y = player->position.y + distance * mostLeftRay.y;
+    //     Vector2i floorIndex;
+    //     Vector2i pixelCoordsInTexture;
+    //     for (int j = 0; j < WWIDTH; j++) {
+    //         floorIndex.x = (int)currentPosFloor.x;
+    //         floorIndex.y = (int)currentPosFloor.y;
+    //         pixelCoordsInTexture.x = (int)((currentPosFloor.x - floorIndex.x) * TEXWIDTH) & (TEXWIDTH-1);
+    //         pixelCoordsInTexture.y = (int)((currentPosFloor.y - floorIndex.y) * TEXHEIGHT) & (TEXHEIGHT-1);
+    //         currentPosFloor.x += floorStep.x;
+    //         currentPosFloor.y += floorStep.y;
+    //         // Uint32 color;
+    //         buffer[i*WWIDTH+j] =  surfPixels[1][WWIDTH*pixelCoordsInTexture.y + pixelCoordsInTexture.x];
+    //         buffer[(WHEIGHT-i-1)*WWIDTH+j] = surfPixels[2][WWIDTH*pixelCoordsInTexture.y + pixelCoordsInTexture.x];
+    //     }
+    // }
     //walls casting
     for (int i = 0; i < WWIDTH; i++) {
         double cameraX = 2 * i / (double)WWIDTH - 1;
@@ -337,11 +333,11 @@ void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int *buffer
             halfWallHeight = 0;
         }
         int j=0;
-        // for (; j < wcenter - halfWallHeight; j++) {
-        //     // buffer[j*WWIDTH+i] = 0x0000CC;
+        for (; j < wcenter - halfWallHeight; j++) {
+            // buffer[j*WWIDTH+i] = 0x0000CC;
 
-        //     drawPixel(i, j, 0, 0, 0xCC, 255, buffer);
-        // }
+            drawPixel(i, j, 0, 0, 0xCC, 255, buffer);
+        }
         double step = (double)TEXHEIGHT/wallHeight;
         double texY = 0;
         for (j = wcenter - halfWallHeight; j < wcenter+halfWallHeight; j++) {
@@ -349,19 +345,9 @@ void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int *buffer
             texY+=step;
             int index = (int)texYIndex*surfaces[0]->w+positionOnTexture;
             Uint32 color = surfPixels[0][index];
-            // Uint32 color = 0;
-            // Uint8 colorByte;
-            // if (side==1) {
-            // for (int k = 0; k<=24; k+=8) {
-            //     colorByte = (surfPixels[0][index]>>k) & 0xFF;
-            //     colorByte = colorByte-((Uint8)((int)wallDist*10)&colorByte);
-            //     // if ((int)wallDist*10>=colorByte) {
-            //     //     colorByte = 0;
-            //     // }
-            //     color |= ((colorByte) << k);
-            // }
-            color = (((color>>24) & 0xFF))<<24 | (((color>>16) & 0xFF))-((int)wallDist*5)<<16 | (((color>>8) & 0xFF))-(Uint8)wallDist*5<<8 | ((color & 0xFF))-(Uint8)wallDist*5;
-            // }
+            if (side==1) {
+                color = (((color>>24) & 0xFF)>>1)<<24 | (((color>>16) & 0xFF)>>1)<<16 | (((color>>8) & 0xFF)>>1)<<8 | (color & 0xFF)>>1;
+            }
             buffer[j*WWIDTH+i] = color;
             // drawPixel(i, j, surfPixels[startingIndex+3], surfPixels[startingIndex+2], surfPixels[startingIndex+1], surfPixels[startingIndex], buffer);
         }
@@ -371,10 +357,10 @@ void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int *buffer
         // for (; j < wcenter+halfWallHeight*3; j++) {
         //     buffer[j*WWIDTH+i] = 0xCCCCCC/side;
         // }
-        // for (; j < WHEIGHT; j++) {
-        //     drawPixel(i, j, 0, 0, 0, 255, buffer);
-        //     // buffer[j*WWIDTH+i] = 0x000000;
-        // }
+        for (; j < WHEIGHT; j++) {
+            drawPixel(i, j, 0, 0, 0, 255, buffer);
+            // buffer[j*WWIDTH+i] = 0x000000;
+        }
         // SDL_SetRenderDrawColor(renderer, 0, 0, 150, 255);
         // SDL_RenderDrawLine(renderer, i, 0, i, wcenter-halfWallHeight);
         // SDL_SetRenderDrawColor(renderer, colors[map[currentPosInMap.y][currentPosInMap.x]-1].r/side, colors[map[currentPosInMap.y][currentPosInMap.x]-1].g/side, colors[map[currentPosInMap.y][currentPosInMap.x]-1].b/side, 255);

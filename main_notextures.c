@@ -59,7 +59,7 @@ typedef struct Player {
 
 SDL_Color *colors;
 
-void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int offset);
+void castRays(SDL_Renderer *renderer, SDL_Renderer *renderer2D, Player *player, int mapScaler, int offset);
 void initColors();
 // typedef struct ScaledProjection {
 //     int width;
@@ -189,7 +189,7 @@ int main(void) {
         // SDL_RenderDrawLineF(renderer2D, player.position.x*30+player.direction.x*30, player.position.y*30 + player.direction.y*30 , player.position.x*30+player.direction.x*30+player.screen.x*30, player.position.y*30+player.direction.y*30+player.screen.y*30);
         // SDL_RenderDrawLineF(renderer2D, player.position.x*30+player.direction.x*30, player.position.y*30 + player.direction.y*30 , player.position.x*30+player.direction.x*30-player.screen.x*30, player.position.y*30+player.direction.y*30-player.screen.y*30);
         //FINE render 2D di prova
-        castRays(renderer, &player, mapScaler, currentFrame);
+        castRays(renderer, renderer2D, &player, mapScaler, currentFrame);
         SDL_RenderPresent(renderer);
         SDL_RenderPresent(renderer2D);
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -198,7 +198,7 @@ int main(void) {
     }
 }
 
-void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int offset) {
+void castRays(SDL_Renderer *renderer, SDL_Renderer *renderer2D, Player *player, int mapScaler, int offset) {
     const int wcenter = WWIDTH/2 + offset;
     for (int i = 0; i < WWIDTH; i++) {
         double cameraX = (double)((double)2 * i / (double)WWIDTH) - 1;
@@ -254,6 +254,7 @@ void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int offset)
         } else {
             wallDist = currentLength.y - unaryLength.y;
         }
+        // wallDist = wallDist*cos(dotProduct(player->screen, ray)/(norm(ray)*norm(player->screen)));
         int halfWallHeight = floor((WHEIGHT/wallDist)/2);
         //INIZIO RENDER 3D
         SDL_SetRenderDrawColor(renderer, 0, 0, 150, 255);
@@ -265,6 +266,7 @@ void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int offset)
         SDL_SetRenderDrawColor(renderer, 60, 60, 60, 130);
         SDL_RenderDrawLine(renderer, i, wcenter+halfWallHeight, i, WHEIGHT-1);
         //FINE RENDER 3D
+        // SDL_RenderDrawLineF(renderer2D, player->position.x*30, player->position.y*30, (player->position.x+wallDist*ray.x)*30, (player->position.y+wallDist*ray.y)*30);
 
 
         // SDL_RenderDrawLineF(renderer, player->position.x*30, player->position.y*30, tmp.x*30+currentLength.x*30*direction.x, tmp.y*30+currentLength.y*30*direction.y);
