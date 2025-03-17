@@ -37,4 +37,10 @@ double norm(Vector2 vector) {
     return sqrt(dotProduct(vector, vector));
 }
 
+double determinant2DMatrix(double **matrix) {
+    return matrix[0][0]*matrix[1][1]-matrix[0][1]*matrix[1][0];
+}
+
+
+
 #endif

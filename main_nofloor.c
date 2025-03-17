@@ -135,9 +135,9 @@ int main(void) {
     SDL_RaiseWindow(window);
     int isGameRunning = 1;
     SDL_Surface **surfaces = malloc(3*sizeof(SDL_Surface*));
-    surfaces[0] = SDL_LoadBMP("assets/backrooms.bmp");
-    surfaces[1] = SDL_LoadBMP("assets/backrooms_floor.bmp");
-    surfaces[2] = SDL_LoadBMP("assets/backrooms_ceiling.bmp");
+    surfaces[0] = SDL_LoadBMP("assets/images/backrooms.bmp");
+    surfaces[1] = SDL_LoadBMP("assets/images/backrooms_floor.bmp");
+    surfaces[2] = SDL_LoadBMP("assets/images/backrooms_ceiling.bmp");
     for (int i = 0; i < 3; i++) {
         SDL_ConvertSurfaceFormat(surfaces[i], SDL_PIXELFORMAT_ARGB8888, 0);
         SDL_LockSurface(surfaces[i]);

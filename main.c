@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "linear_alg.h"
 
 #define PI 3.14159f
@@ -23,7 +24,10 @@
 #define MAPHEIGHT 24
 #define TEXWIDTH 256
 #define TEXHEIGHT 256
+#define TEXNUM 4
 #define BUFLEN WWIDTH*WHEIGHT*sizeof(int)
+#define SHADOWSTRENGTH 15
+#define AUDIOSAMPLESNUM 4
 
 int map[MAPWIDTH][MAPHEIGHT]=
 {
@@ -91,13 +95,16 @@ SDL_Texture **screenTextures;
 int buffer[BUFLEN];
 const int bufLen = BUFLEN;
 
-void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int *buffer, SDL_Surface **surfaces);
+void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int *buffer, SDL_Surface **surfaces, double *depths, Vector2 *entities, int entitiesNum);
 void initColors();
 void initWindow(SDL_Window *window, SDL_Renderer *renderer);//TODO: da implementare
 void writeBufferOnTexture(int *buffer, SDL_Texture *texture);
 void drawPixel(int x, int y, Uint8 r, Uint8 g, Uint8 b, Uint8 a, int *buffer);
 void drawVerticalLine(int x, int y1, int y2, Uint8 r, Uint8 g, Uint8 b, Uint8 a, int *buffer);
 void initBuffer(int *buffer);
+int cmpDbls(void const *a, void const *b) {
+    return (*(double*)a > *(double*)b);
+}
 // typedef struct ScaledProjection {
 //     int width;
 //     int height;
@@ -132,18 +139,41 @@ int main(void) {
         screenTextures[i] = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, WWIDTH, WHEIGHT);
         SDL_SetTextureBlendMode(screenTextures[i], SDL_BLENDMODE_NONE);
     }
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 1024) < 0) {
+        printf("Audio Mixer couldn't be initialized: %s\n", Mix_GetError());
+        return 1;
+    }
+    srand(time(NULL));
+    Mix_AllocateChannels(10);
+    Mix_Chunk **stepSounds = malloc(AUDIOSAMPLESNUM*sizeof(Mix_Chunk*));
+    for (int i = 0; i < AUDIOSAMPLESNUM; i++) {
+        char *str = malloc(50*sizeof(char));
+        sprintf(str, "assets/audio/step%d.wav", i+1);
+        stepSounds[i] = Mix_LoadWAV(str);
+        free(str);
+    }
     SDL_RaiseWindow(window);
     int isGameRunning = 1;
-    SDL_Surface **surfaces = malloc(3*sizeof(SDL_Surface*));
-    surfaces[0] = SDL_LoadBMP("assets/backrooms.bmp");
-    surfaces[1] = SDL_LoadBMP("assets/backrooms_floor1.bmp");
-    surfaces[2] = SDL_LoadBMP("assets/backrooms_ceiling.bmp");
-    for (int i = 0; i < 3; i++) {
+    SDL_Surface **surfaces = malloc(TEXNUM*sizeof(SDL_Surface*));
+    surfaces[0] = SDL_LoadBMP("assets/images/backrooms.bmp");
+    surfaces[1] = SDL_LoadBMP("assets/images/backrooms_floor1.bmp");
+    surfaces[2] = SDL_LoadBMP("assets/images/backrooms_ceiling.bmp");
+    surfaces[3] = SDL_LoadBMP("assets/images/sprite.bmp");
+    for (int i = 0; i < TEXNUM; i++) {
         SDL_ConvertSurfaceFormat(surfaces[i], SDL_PIXELFORMAT_ARGB8888, 0);
         SDL_LockSurface(surfaces[i]);
     }
     Uint32 currentFrame = 0;
     initBuffer(buffer);
+    double *depths = malloc(WWIDTH*sizeof(double));
+    int entitiesNum = 1;
+    Vector2 *entities = malloc(entitiesNum*sizeof(Vector2));
+    entities->x = 11;
+    entities->y = 3;
+    Uint32 framesSpentMoving = 0;
+    Vector2 prevPosition;
+    prevPosition.x = player.position.x;
+    prevPosition.y = player.position.y;
     while (isGameRunning) {
         Uint32 lastTick = SDL_GetTicks();
         SDL_RenderClear(renderer);
@@ -161,13 +191,24 @@ int main(void) {
             rotateVector(&player.screen, 0.016);
         }    
         if (pressedKeys[SDL_SCANCODE_UP]) {
-            player.position.x+=player.direction.x/10;
-            player.position.y+=player.direction.y/10;
+            if (framesSpentMoving/30>=0 && framesSpentMoving%30==10) {
+                Mix_PlayChannel(-1, stepSounds[(framesSpentMoving/30)%4], 0);
+            }
+            framesSpentMoving++;
+            player.position.x+=player.direction.x/18;
+            player.position.y+=player.direction.y/18;
         } 
         if (pressedKeys[SDL_SCANCODE_DOWN]) {
-            player.position.x-=player.direction.x/10;
-            player.position.y-=player.direction.y/10;
-        }  
+            if (framesSpentMoving/30>=0 && framesSpentMoving%30==10) {
+                Mix_PlayChannel(-1, stepSounds[(framesSpentMoving/30)%4], 0);
+            }
+            framesSpentMoving++;
+            player.position.x-=player.direction.x/18;
+            player.position.y-=player.direction.y/18;
+        }
+        if (player.position.x == prevPosition.x && player.position.y == prevPosition.y) {
+            framesSpentMoving = 0;
+        }
         // for (int i = 0; i < bufLen; i++) {
         //     buffer[i] = 0xFF;
         // }
@@ -188,7 +229,7 @@ int main(void) {
         // for (int i = 0; i < WHEIGHT; i++) {
         //     buffer[i*WWIDTH+WWIDTH-1] = 0xFF;
         // }
-        castRays(renderer, &player, 0, buffer, surfaces);
+        castRays(renderer, &player, 0, buffer, surfaces, depths, entities, 1);
         // SDL_RenderDrawPointF(renderer, player.position.x, player.position.y);
         // SDL_RenderDrawLineF(renderer, player.position.x, player.position.y, player.position.x + player.direction.x , player.position.y + player.direction.y );
         // SDL_RenderDrawLineF(renderer, player.position.x+player.direction.x, player.position.y + player.direction.y , player.position.x+player.direction.x+player.screen.x, player.position.y+player.direction.y+player.screen.y);
@@ -205,6 +246,8 @@ int main(void) {
             // SDL_FreeSurface(surfaces[i]);
         }
         currentFrame++;
+        prevPosition.x = player.position.x;
+        prevPosition.y = player.position.y;
         SDL_Delay(delayMs - currentDelay);
         // SDL_Delay(10);
     }
@@ -217,13 +260,13 @@ int main(void) {
     SDL_DestroyWindow(window);
 }
 
-void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int *buffer, SDL_Surface **surfaces) {
-    const int wcenter = WHEIGHT/2;//offsettato giu di 50 per avere una visuale un po' piu' bassa
-    
-    Uint32 **surfPixels = malloc(3*sizeof(Uint32*));
-    for (int i = 0; i < 3; i++) {
+void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int *buffer, SDL_Surface **surfaces, double *depths, Vector2 *entities, int entitiesNum) {
+    const int wcenter = WHEIGHT/2;//offsettato giu di 50 per avere una visuale un po' piu' bassa 
+    Uint32 **surfPixels = malloc(TEXNUM*sizeof(Uint32*));
+    for (int i = 0; i < TEXNUM; i++) {
         surfPixels[i] = surfaces[i]->pixels;
     }
+    
     //floor casting
     for (int i = wcenter+1; i < WHEIGHT; i++) {
         Vector2 mostLeftRay;
@@ -254,11 +297,28 @@ void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int *buffer
             currentPosFloor.x += floorStep.x;
             currentPosFloor.y += floorStep.y;
             // Uint32 color;
-            Uint32 color = surfPixels[1][WWIDTH*pixelCoordsInTexture.y + pixelCoordsInTexture.x];
-            color = (((color>>24) & 0xFF))<<24 | (((color>>16) & 0xFF)-(Uint8)distance*5)<<16  | (((color>>8) & 0xFF)-(int)distance*5)<<8  | ((color & 0xFF))-(int)distance*5;
+            Uint32 color = 0;
+            Uint8 colorByte;
+            for (int k = 0; k<=24; k+=8) {
+                colorByte = (surfPixels[1][WWIDTH*pixelCoordsInTexture.y + pixelCoordsInTexture.x]>>k) & 0xFF;
+                if (distance*SHADOWSTRENGTH>colorByte) {
+                    colorByte = 0;
+                } else {
+                    colorByte -= distance*SHADOWSTRENGTH;
+                }
+                color |= ((colorByte) << k);
+            }
             buffer[i*WWIDTH+j] =  color;
-            color = surfPixels[2][WWIDTH*pixelCoordsInTexture.y + pixelCoordsInTexture.x];
-            color = (((color>>24) & 0xFF))<<24 | (((color>>16) & 0xFF))-(int)distance*5<<16 | (((color>>8) & 0xFF))-(int)distance*5<<8 | ((color & 0xFF))-(int)distance*5;
+            color = 0;
+            for (int k = 0; k<=24; k+=8) {
+                colorByte = (surfPixels[2][WWIDTH*pixelCoordsInTexture.y + pixelCoordsInTexture.x]>>k) & 0xFF;
+                if (distance*SHADOWSTRENGTH>colorByte) {
+                    colorByte = 0;
+                } else {
+                    colorByte -= distance*SHADOWSTRENGTH;
+                }
+                color |= ((colorByte) << k);
+            }
             buffer[(WHEIGHT-i-1)*WWIDTH+j] = color;
         }
     }
@@ -319,7 +379,7 @@ void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int *buffer
             wallDist = currentLength.y - unaryLength.y;
         }
         wallDist = wallDist*cos(dotProduct(player->screen, ray)/(norm(ray)*norm(player->screen)));
-        
+        depths[i] = wallDist; 
         if (side==1) {
             positionOnTexture = player->position.y + wallDist * ray.y;
         } else {
@@ -348,19 +408,20 @@ void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int *buffer
             int texYIndex = (int)texY & (TEXHEIGHT-1);
             texY+=step;
             int index = (int)texYIndex*surfaces[0]->w+positionOnTexture;
-            Uint32 color = surfPixels[0][index];
-            // Uint32 color = 0;
-            // Uint8 colorByte;
+            // Uint32 color = surfPixels[0][index];
+            Uint32 color = 0;
+            Uint8 colorByte;
             // if (side==1) {
-            // for (int k = 0; k<=24; k+=8) {
-            //     colorByte = (surfPixels[0][index]>>k) & 0xFF;
-            //     colorByte = colorByte-((Uint8)((int)wallDist*10)&colorByte);
-            //     // if ((int)wallDist*10>=colorByte) {
-            //     //     colorByte = 0;
-            //     // }
-            //     color |= ((colorByte) << k);
-            // }
-            color = (((color>>24) & 0xFF))<<24 | (((color>>16) & 0xFF))-((int)wallDist*5)<<16 | (((color>>8) & 0xFF))-(Uint8)wallDist*5<<8 | ((color & 0xFF))-(Uint8)wallDist*5;
+            for (int k = 0; k<=24; k+=8) {
+                colorByte = (surfPixels[0][index]>>k) & 0xFF;
+                if (wallDist*(SHADOWSTRENGTH+2)>colorByte) {
+                    colorByte = 0;
+                } else {
+                    colorByte -= wallDist*(SHADOWSTRENGTH+2);
+                }
+                color |= ((colorByte) << k);
+            }
+            // color = (((color>>24) & 0xFF))<<24 | (((color>>16) & 0xFF))-((int)wallDist*5)<<16 | (((color>>8) & 0xFF))-(Uint8)wallDist*5<<8 | ((color & 0xFF))-(Uint8)wallDist*5;
             // }
             buffer[j*WWIDTH+i] = color;
             // drawPixel(i, j, surfPixels[startingIndex+3], surfPixels[startingIndex+2], surfPixels[startingIndex+1], surfPixels[startingIndex], buffer);
@@ -383,7 +444,25 @@ void castRays(SDL_Renderer *renderer, Player *player, int mapScaler, int *buffer
         // SDL_RenderDrawLine(renderer, i, wcenter+halfWallHeight, i, WHEIGHT-1);
         // SDL_RenderDrawLineF(renderer, player->position.x, player->position.y, tmp.x, tmp.y);
     }
+    double *entitiesDistance = malloc(entitiesNum*sizeof(double)); 
+    
+    //TODO: finish entities sprites casting
+    // for (int i = 0 ; i < entitiesNum; i++) {
+    //     entitiesDistance[i] = pow(player->position.x - entities[i].x,2) + pow(player->position.y-entities[i].y,2);
+    // }
+    // qsort(entitiesDistance, entitiesNum, sizeof(double), cmpDbls);
+    // Vector2 relativeEntityPos;
+    // for (int i = 0; i < entitiesNum; i++) {
+
+    // }
+
 }
+
+// int *getSortedIndexes(double *values, int length) {
+//     for (int i = 0; i < length; i++) {
+        
+//     }
+// }
 
 void initColors() {
     colors = malloc(4*sizeof(SDL_Color));
